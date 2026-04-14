@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# uv
+uv.lock
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Outputs (generated at runtime)
+training_curve.png
+*.png
+*.mp4
+*.gif
+
+# OS
+.DS_Store
+Thumbs.db

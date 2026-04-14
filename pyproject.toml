@@ -1,0 +1,10 @@
+[project]
+name = "rl-cartpole"
+version = "0.1.0"
+description = "DQN agent solving CartPole-v1 from scratch with NumPy"
+requires-python = ">=3.11"
+dependencies = [
+    "gymnasium>=1.0.0",
+    "numpy>=1.26.0",
+    "matplotlib>=3.8.0",
+]
