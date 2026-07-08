@@ -9,43 +9,53 @@ Usage
 """
 
 from __future__ import annotations
+
 import argparse
 from collections import deque
+
 import gymnasium as gym
 import matplotlib
+
 matplotlib.use("Agg")  # headless backend — works without a display
 import matplotlib.pyplot as plt
 import numpy as np
+
 from dqn_agent import RainbowLiteAgent
 
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
 
-NUM_EPISODES    = 600
-SOLVE_THRESHOLD = 475      # 100-ep rolling average required to declare solved
-WARMUP_STEPS    = 1_000    # collect this many transitions before training
+NUM_EPISODES = 600
+SOLVE_THRESHOLD = 475  # 100-ep rolling average required to declare solved
+WARMUP_STEPS = 1_000  # collect this many transitions before training
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def make_env(render: bool = False) -> gym.Env:
     return gym.make("CartPole-v1", render_mode="human" if render else None)
+
 
 def plot_rewards(rewards: list[float], path: str = "training_curve.png") -> None:
     """Save a clean, annotated learning-curve plot."""
     fig, ax = plt.subplots(figsize=(12, 5))
     eps = np.arange(len(rewards))
 
-    ax.plot(eps, rewards, alpha=0.35, color="#74c0fc", linewidth=0.8,
-            label="Episode reward")
+    ax.plot(eps, rewards, alpha=0.35, color="#74c0fc", linewidth=0.8, label="Episode reward")
 
     window = 100
     if len(rewards) >= window:
         roll = np.convolve(rewards, np.ones(window) / window, mode="valid")
-        ax.plot(np.arange(window - 1, len(rewards)), roll,
-                color="#e03131", linewidth=2.2, label=f"{window}-ep rolling avg")
+        ax.plot(
+            np.arange(window - 1, len(rewards)),
+            roll,
+            color="#e03131",
+            linewidth=2.2,
+            label=f"{window}-ep rolling avg",
+        )
 
         # Mark where the agent solved the task
         solved = np.where(roll >= SOLVE_THRESHOLD)[0]
@@ -61,8 +71,13 @@ def plot_rewards(rewards: list[float], path: str = "training_curve.png") -> None
                 fontsize=9,
             )
 
-    ax.axhline(SOLVE_THRESHOLD, color="#2f9e44", linestyle=":", alpha=0.5,
-               label=f"Solve threshold ({SOLVE_THRESHOLD})")
+    ax.axhline(
+        SOLVE_THRESHOLD,
+        color="#2f9e44",
+        linestyle=":",
+        alpha=0.5,
+        label=f"Solve threshold ({SOLVE_THRESHOLD})",
+    )
     ax.axhline(500, color="#868e96", linestyle=":", alpha=0.4, label="Max reward (500)")
 
     ax.set_xlabel("Episode", fontsize=11)
@@ -79,9 +94,11 @@ def plot_rewards(rewards: list[float], path: str = "training_curve.png") -> None
     print(f"[PLOT] Saved -> {path}")
     plt.close(fig)
 
+
 # ---------------------------------------------------------------------------
 # Training loop
 # ---------------------------------------------------------------------------
+
 
 def train(num_episodes: int = NUM_EPISODES, render: bool = False) -> list[float]:
     env = make_env(render=render)
@@ -93,7 +110,7 @@ def train(num_episodes: int = NUM_EPISODES, render: bool = False) -> list[float]
     total_steps = 0
 
     header = f"{'Ep':>6} | {'Steps':>7} | {'Reward':>7} | {'Avg100':>7} | {'eps':>6} | {'Loss':>9} | {'beta':>5}"
-    sep    = "-" * len(header)
+    sep = "-" * len(header)
     print(header)
     print(sep)
 
@@ -127,7 +144,7 @@ def train(num_episodes: int = NUM_EPISODES, render: bool = False) -> list[float]
         episode_rewards.append(total_reward)
         rolling.append(total_reward)
         avg100 = float(np.mean(rolling))
-        beta   = agent.buffer.beta
+        beta = agent.buffer.beta
 
         loss_str = f"{last_loss:9.4f}" if last_loss is not None else "         -"
         print(
@@ -139,7 +156,9 @@ def train(num_episodes: int = NUM_EPISODES, render: bool = False) -> list[float]
         if avg100 >= SOLVE_THRESHOLD and solved_at is None:
             solved_at = ep
             print(sep)
-            print(f"[SOLVED] Episode {ep}  |  avg100 = {avg100:.1f}  |  total steps = {total_steps:,}")
+            print(
+                f"[SOLVED] Episode {ep}  |  avg100 = {avg100:.1f}  |  total steps = {total_steps:,}"
+            )
             print(sep)
             break
 
@@ -147,9 +166,12 @@ def train(num_episodes: int = NUM_EPISODES, render: bool = False) -> list[float]
 
     if solved_at is None:
         print(sep)
-        print(f"[WARN] Did not solve in {num_episodes} episodes (best avg100 = {max(np.convolve(episode_rewards, np.ones(min(100,len(episode_rewards)))/min(100,len(episode_rewards)), mode='valid')):.1f})")
+        print(
+            f"[WARN] Did not solve in {num_episodes} episodes (best avg100 = {max(np.convolve(episode_rewards, np.ones(min(100, len(episode_rewards))) / min(100, len(episode_rewards)), mode='valid')):.1f})"
+        )
 
     return episode_rewards
+
 
 # ---------------------------------------------------------------------------
 # Entry point
@@ -157,7 +179,7 @@ def train(num_episodes: int = NUM_EPISODES, render: bool = False) -> list[float]
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Rainbow-lite DQN on CartPole-v1")
-    parser.add_argument("--render",   action="store_true", help="Render while training")
+    parser.add_argument("--render", action="store_true", help="Render while training")
     parser.add_argument("--episodes", type=int, default=NUM_EPISODES)
     args = parser.parse_args()
 
