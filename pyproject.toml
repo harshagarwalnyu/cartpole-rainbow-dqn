@@ -21,3 +21,10 @@ target-version = "py311"
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B"]
 ignore = ["E501"]
+
+# The notebook stitches four standalone modules (network/replay_buffer/dqn_agent/train)
+# into one file as separate cells, each keeping its own module docstring + `from __future__`
+# header by design; ruff lints the concatenated cells as one file, so E402/F404/F811 fire
+# on that intentional structure rather than a real bug.
+[tool.ruff.lint.per-file-ignores]
+"Rainbow_DQN_CartPole.ipynb" = ["E402", "F404", "F811"]

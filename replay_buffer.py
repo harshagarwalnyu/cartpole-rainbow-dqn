@@ -27,10 +27,10 @@ from collections import deque
 
 import numpy as np
 
-
 # ---------------------------------------------------------------------------
 # SumTree
 # ---------------------------------------------------------------------------
+
 
 class SumTree:
     """
@@ -42,7 +42,7 @@ class SumTree:
     def __init__(self, capacity: int) -> None:
         self.capacity = capacity
         self._tree = np.zeros(2 * capacity, dtype=np.float64)
-        self._write = 0          # circular write pointer (leaf index)
+        self._write = 0  # circular write pointer (leaf index)
         self._n_entries = 0
 
     # ------------------------------------------------------------------
@@ -111,6 +111,7 @@ class SumTree:
 # N-step buffer (accumulates short trajectories)
 # ---------------------------------------------------------------------------
 
+
 class NStepBuffer:
     """
     Collects n consecutive (s, a, r, s', done) tuples and emits a single
@@ -127,9 +128,7 @@ class NStepBuffer:
         self.gamma = gamma
         self._buf: deque = deque()
 
-    def push(
-        self, s, a, r, s_next, done
-    ) -> list[tuple]:
+    def push(self, s, a, r, s_next, done) -> list[tuple]:
         """
         Add one transition. Returns a list of ready n-step transitions
         (usually 0 or 1 items; all remaining items on done=True).
@@ -156,7 +155,7 @@ class NStepBuffer:
         last_s_next = None
         last_done = False
         for i, (_, _, r, s_next, done) in enumerate(self._buf):
-            G += (self.gamma ** i) * r
+            G += (self.gamma**i) * r
             last_s_next = s_next
             last_done = done
             if done:
@@ -167,6 +166,7 @@ class NStepBuffer:
 # ---------------------------------------------------------------------------
 # Prioritized Replay Buffer
 # ---------------------------------------------------------------------------
+
 
 class PrioritizedReplayBuffer:
     """
@@ -228,7 +228,7 @@ class PrioritizedReplayBuffer:
         ready = self._nstep.push(s, a, r, s_next, terminated)
         for transition in ready:
             s0, a0, G, sn, dn = transition
-            priority = self._max_priority ** self.alpha
+            priority = self._max_priority**self.alpha
             idx = self._tree.add(priority)
             self._data[idx] = (
                 np.asarray(s0, dtype=np.float32),
@@ -273,20 +273,20 @@ class PrioritizedReplayBuffer:
         weights = ((probs * n) ** (-beta)) / max_weight
         weights = np.asarray(weights, dtype=np.float32)
 
-        s, a, r, s_next, done = zip(*samples)
+        s, a, r, s_next, done = zip(*samples, strict=True)
         return (
-            np.array(s,      dtype=np.float32),
-            np.array(a,      dtype=np.int64),
-            np.array(r,      dtype=np.float32),
+            np.array(s, dtype=np.float32),
+            np.array(a, dtype=np.int64),
+            np.array(r, dtype=np.float32),
             np.array(s_next, dtype=np.float32),
-            np.array(done,   dtype=np.float32),
+            np.array(done, dtype=np.float32),
             weights,
             idxs,
         )
 
     def update_priorities(self, idxs: list[int], td_errors: np.ndarray) -> None:
         """Update tree priorities given new TD errors."""
-        for idx, err in zip(idxs, td_errors):
+        for idx, err in zip(idxs, td_errors, strict=True):
             p = (abs(float(err)) + self.eps_priority) ** self.alpha
             self._max_priority = max(self._max_priority, p)
             self._tree.update(idx, p)

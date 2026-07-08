@@ -16,9 +16,12 @@ Expected convergence: ~200–400 episodes to avg100 >= 475.
 """
 
 from __future__ import annotations
+
 import numpy as np
+
 from network import DuelingQNetwork
 from replay_buffer import PrioritizedReplayBuffer
+
 
 class RainbowLiteAgent:
     """
@@ -95,7 +98,7 @@ class RainbowLiteAgent:
         """
         if np.random.rand() < self.epsilon:
             return np.random.randint(self.action_dim)
-        q = self.q_online.forward(state[np.newaxis])   # (1, 2)
+        q = self.q_online.forward(state[np.newaxis])  # (1, 2)
         return int(np.argmax(q))
 
     # ------------------------------------------------------------------
@@ -130,21 +133,19 @@ class RainbowLiteAgent:
         if not self.buffer.is_ready(self.batch_size):
             return None
 
-        s, a, r, s_next, done, weights, tree_idxs = self.buffer.sample(
-            self.batch_size
-        )
+        s, a, r, s_next, done, weights, tree_idxs = self.buffer.sample(self.batch_size)
 
         # --- Double DQN target ---
         # 1. Online net picks the BEST ACTION in s_next
-        q_online_next = self.q_online.forward(s_next)       # (batch, 2)
-        best_actions = np.argmax(q_online_next, axis=1)     # (batch,)
+        q_online_next = self.q_online.forward(s_next)  # (batch, 2)
+        best_actions = np.argmax(q_online_next, axis=1)  # (batch,)
 
         # 2. Target net EVALUATES that action (decoupled → less overestimation)
-        q_target_next = self.q_target.forward(s_next)       # (batch, 2)
+        q_target_next = self.q_target.forward(s_next)  # (batch, 2)
         q_next_eval = q_target_next[np.arange(self.batch_size), best_actions]
 
         # Bellman target (n-step discount already baked into r from NStepBuffer)
-        targets = r + (self.gamma ** self.n_step) * q_next_eval * (1.0 - done)
+        targets = r + (self.gamma**self.n_step) * q_next_eval * (1.0 - done)
 
         # --- Gradient step + get TD errors for PER update ---
         loss, td_errs = self.q_online.backward(s, targets, a, weights)

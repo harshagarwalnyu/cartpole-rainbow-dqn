@@ -22,17 +22,21 @@ Gradient:  Global-norm clipping at 10.0.
 """
 
 from __future__ import annotations
+
 import numpy as np
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _relu(x: np.ndarray) -> np.ndarray:
     return np.maximum(0.0, x)
 
+
 def _relu_grad(x: np.ndarray) -> np.ndarray:
     return (x > 0.0).astype(np.float32)
+
 
 def _huber(errors: np.ndarray, delta: float = 1.0) -> tuple[np.ndarray, np.ndarray]:
     """
@@ -45,13 +49,15 @@ def _huber(errors: np.ndarray, delta: float = 1.0) -> tuple[np.ndarray, np.ndarr
     """
     abs_err = np.abs(errors)
     quadratic = np.minimum(abs_err, delta)
-    loss = 0.5 * quadratic ** 2 + delta * (abs_err - quadratic)
+    loss = 0.5 * quadratic**2 + delta * (abs_err - quadratic)
     grad = np.where(abs_err <= delta, errors, delta * np.sign(errors))
     return loss, grad
+
 
 # ---------------------------------------------------------------------------
 # Parameter block helper
 # ---------------------------------------------------------------------------
+
 
 class _Params:
     """Holds one weight matrix + bias + Adam moments."""
@@ -76,16 +82,16 @@ class _Params:
         t: int,
     ) -> None:
         """One Adam step (in-place)."""
-        bc1 = 1.0 - beta1 ** t
-        bc2 = 1.0 - beta2 ** t
+        bc1 = 1.0 - beta1**t
+        bc2 = 1.0 - beta2**t
         self.mW = beta1 * self.mW + (1 - beta1) * dW
-        self.vW = beta2 * self.vW + (1 - beta2) * dW ** 2
+        self.vW = beta2 * self.vW + (1 - beta2) * dW**2
         self.W -= lr * (self.mW / bc1) / (np.sqrt(self.vW / bc2) + eps)
         self.mb = beta1 * self.mb + (1 - beta1) * db
-        self.vb = beta2 * self.vb + (1 - beta2) * db ** 2
+        self.vb = beta2 * self.vb + (1 - beta2) * db**2
         self.b -= lr * (self.mb / bc1) / (np.sqrt(self.vb / bc2) + eps)
 
-    def clone(self) -> "_Params":
+    def clone(self) -> _Params:
         p = _Params.__new__(_Params)
         p.W = self.W.copy()
         p.b = self.b.copy()
@@ -95,9 +101,11 @@ class _Params:
         p.vb = self.vb.copy()
         return p
 
+
 # ---------------------------------------------------------------------------
 # Dueling Q-Network
 # ---------------------------------------------------------------------------
+
 
 class DuelingQNetwork:
     """
@@ -164,21 +172,30 @@ class DuelingQNetwork:
         # --- Value stream ---
         zv1 = a2 @ self.v1.W + self.v1.b
         av1 = _relu(zv1)
-        V = av1 @ self.v2.W + self.v2.b          # (batch, 1)
+        V = av1 @ self.v2.W + self.v2.b  # (batch, 1)
 
         # --- Advantage stream ---
         za1 = a2 @ self.a1.W + self.a1.b
         aa1 = _relu(za1)
-        A = aa1 @ self.a2.W + self.a2.b          # (batch, action_dim)
+        A = aa1 @ self.a2.W + self.a2.b  # (batch, action_dim)
 
         # --- Dueling aggregation ---
         Q = V + (A - A.mean(axis=1, keepdims=True))
 
         # Cache for backprop
         self._cache = dict(
-            s=s, z1=z1, a1=a1, z2=z2, a2=a2,
-            zv1=zv1, av1=av1, V=V,
-            za1=za1, aa1=aa1, A=A, Q=Q,
+            s=s,
+            z1=z1,
+            a1=a1,
+            z2=z2,
+            a2=a2,
+            zv1=zv1,
+            av1=av1,
+            V=V,
+            za1=za1,
+            aa1=aa1,
+            A=A,
+            Q=Q,
         )
         return Q
 
@@ -191,7 +208,7 @@ class DuelingQNetwork:
         s: np.ndarray,
         targets: np.ndarray,
         actions: np.ndarray,
-        weights: np.ndarray,          # IS weights from PER, shape (batch,)
+        weights: np.ndarray,  # IS weights from PER, shape (batch,)
     ) -> tuple[float, np.ndarray]:
         """
         Weighted Huber loss over chosen actions only.
@@ -204,7 +221,7 @@ class DuelingQNetwork:
         batch = s.shape[0]
         Q = self.forward(s)
 
-        td_errs = Q[np.arange(batch), actions] - targets     # (batch,)
+        td_errs = Q[np.arange(batch), actions] - targets  # (batch,)
         huber_loss, huber_grad = _huber(td_errs, self.huber_delta)
         loss = float(np.mean(weights * huber_loss))
 
@@ -214,61 +231,69 @@ class DuelingQNetwork:
 
         # --- Dueling aggregation backward ---
         # Q = V + A - mean(A)  ⟹  dV = sum(dQ), dA = dQ - mean(dQ)
-        dV = dQ.sum(axis=1, keepdims=True)               # (batch, 1)
-        dA = dQ - dQ.mean(axis=1, keepdims=True)         # (batch, action_dim)
+        dV = dQ.sum(axis=1, keepdims=True)  # (batch, 1)
+        dA = dQ - dQ.mean(axis=1, keepdims=True)  # (batch, action_dim)
 
         # --- Advantage stream backward (a1: hidden→64, a2: 64→action_dim) ---
         # Layer a2: (batch, 64) @ (64, action_dim)  → dA is (batch, action_dim)
-        daa1 = dA @ self.a2.W.T                          # (batch, 64)
-        dza1 = daa1 * _relu_grad(self._cache["aa1"])     # (batch, 64)
-        dA1_W = self._cache["aa1"].T @ dA                # (64, action_dim)
-        dA1_b = dA.sum(0)                                # (action_dim,)
+        daa1 = dA @ self.a2.W.T  # (batch, 64)
+        dza1 = daa1 * _relu_grad(self._cache["aa1"])  # (batch, 64)
+        dA1_W = self._cache["aa1"].T @ dA  # (64, action_dim)
+        dA1_b = dA.sum(0)  # (action_dim,)
         # Propagate through a1 (hidden → 64): W shape (hidden, 64)
-        dA0_W = self._cache["a2"].T @ dza1               # (hidden, 64)
-        dA0_b = dza1.sum(0)                              # (64,)
-        d_a2_from_adv = dza1 @ self.a1.W.T              # (batch, hidden)
+        dA0_W = self._cache["a2"].T @ dza1  # (hidden, 64)
+        dA0_b = dza1.sum(0)  # (64,)
+        d_a2_from_adv = dza1 @ self.a1.W.T  # (batch, hidden)
 
         # --- Value stream backward (v1: hidden→64, v2: 64→1) ---
         # Forward: zv1 = a2_shared @ v1.W + v1.b  shape (batch, 64)
         #          av1 = relu(zv1)
         #          V   = av1 @ v2.W + v2.b          shape (batch, 1)
         # Backward:
-        dav1 = dV @ self.v2.W.T                          # (batch, 64)
-        dzv1 = dav1 * _relu_grad(self._cache["zv1"])    # (batch, 64)
-        dV1_W = self._cache["av1"].T @ dV               # (64, 1)
-        dV1_b = dV.sum(0).squeeze()                      # (1,) → scalar-safe
-        dV0_W = self._cache["a2"].T @ dzv1              # (hidden, 64)
-        dV0_b = dzv1.sum(0)                              # (64,)
-        d_a2_from_val = dzv1 @ self.v1.W.T              # (batch, hidden)
+        dav1 = dV @ self.v2.W.T  # (batch, 64)
+        dzv1 = dav1 * _relu_grad(self._cache["zv1"])  # (batch, 64)
+        dV1_W = self._cache["av1"].T @ dV  # (64, 1)
+        dV1_b = dV.sum(0).squeeze()  # (1,) → scalar-safe
+        dV0_W = self._cache["a2"].T @ dzv1  # (hidden, 64)
+        dV0_b = dzv1.sum(0)  # (64,)
+        d_a2_from_val = dzv1 @ self.v1.W.T  # (batch, hidden)
 
         # --- Shared trunk backward ---
-        d_a2 = d_a2_from_adv + d_a2_from_val            # (batch, hidden)
-        d_z2 = d_a2 * _relu_grad(self._cache["z2"])     # (batch, hidden)
-        dfc2_W = self._cache["a1"].T @ d_z2             # (hidden, hidden)
-        dfc2_b = d_z2.sum(0)                            # (hidden,)
-        d_a1 = d_z2 @ self.fc2.W.T                      # (batch, hidden)
-        d_z1 = d_a1 * _relu_grad(self._cache["z1"])     # (batch, hidden)
-        dfc1_W = s.T @ d_z1                             # (state_dim, hidden)
-        dfc1_b = d_z1.sum(0)                            # (hidden,)
+        d_a2 = d_a2_from_adv + d_a2_from_val  # (batch, hidden)
+        d_z2 = d_a2 * _relu_grad(self._cache["z2"])  # (batch, hidden)
+        dfc2_W = self._cache["a1"].T @ d_z2  # (hidden, hidden)
+        dfc2_b = d_z2.sum(0)  # (hidden,)
+        d_a1 = d_z2 @ self.fc2.W.T  # (batch, hidden)
+        d_z1 = d_a1 * _relu_grad(self._cache["z1"])  # (batch, hidden)
+        dfc1_W = s.T @ d_z1  # (state_dim, hidden)
+        dfc1_b = d_z1.sum(0)  # (hidden,)
 
         # --- Global gradient-norm clip ---
         all_grads = [
-            dfc1_W, dfc1_b, dfc2_W, dfc2_b,
-            dV0_W, dV0_b, dV1_W, dV1_b,
-            dA0_W, dA0_b, dA1_W, dA1_b,
+            dfc1_W,
+            dfc1_b,
+            dfc2_W,
+            dfc2_b,
+            dV0_W,
+            dV0_b,
+            dV1_W,
+            dV1_b,
+            dA0_W,
+            dA0_b,
+            dA1_W,
+            dA1_b,
         ]
-        gnorm = np.sqrt(sum(float(np.sum(g ** 2)) for g in all_grads))
+        gnorm = np.sqrt(sum(float(np.sum(g**2)) for g in all_grads))
         if gnorm > self.clip_norm:
             scale = self.clip_norm / gnorm
             all_grads = [g * scale for g in all_grads]
-        (dfc1_W, dfc1_b, dfc2_W, dfc2_b,
-         dV0_W, dV0_b, dV1_W, dV1_b,
-         dA0_W, dA0_b, dA1_W, dA1_b) = all_grads
+        (dfc1_W, dfc1_b, dfc2_W, dfc2_b, dV0_W, dV0_b, dV1_W, dV1_b, dA0_W, dA0_b, dA1_W, dA1_b) = (
+            all_grads
+        )
 
         # --- Adam updates ---
         self._t += 1
-        kw = dict(lr=self.lr, beta1=self.BETA1, beta2=self.BETA2,
-                  eps=self.EPS_ADAM, t=self._t)
+        kw = dict(lr=self.lr, beta1=self.BETA1, beta2=self.BETA2, eps=self.EPS_ADAM, t=self._t)
         self.fc1.update(dfc1_W, dfc1_b, **kw)
         self.fc2.update(dfc2_W, dfc2_b, **kw)
         self.v1.update(dV0_W, dV0_b, **kw)
@@ -282,20 +307,21 @@ class DuelingQNetwork:
     # Target-network helpers
     # ------------------------------------------------------------------
 
-    def copy_from(self, other: "DuelingQNetwork") -> None:
+    def copy_from(self, other: DuelingQNetwork) -> None:
         """Hard copy all weights (used at init)."""
         for dst, src in self._param_pairs(other):
             dst.W = src.W.copy()
             dst.b = src.b.copy()
 
-    def soft_update_from(self, other: "DuelingQNetwork", tau: float) -> None:
+    def soft_update_from(self, other: DuelingQNetwork, tau: float) -> None:
         """Polyak averaging: self ← tau*other + (1-tau)*self."""
         for dst, src in self._param_pairs(other):
             dst.W = tau * src.W + (1.0 - tau) * dst.W
             dst.b = tau * src.b + (1.0 - tau) * dst.b
 
-    def _param_pairs(self, other: "DuelingQNetwork"):
+    def _param_pairs(self, other: DuelingQNetwork):
         return zip(
             [self.fc1, self.fc2, self.v1, self.v2, self.a1, self.a2],
             [other.fc1, other.fc2, other.v1, other.v2, other.a1, other.a2],
+            strict=True,
         )
