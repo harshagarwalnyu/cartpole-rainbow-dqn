@@ -1,5 +1,9 @@
 # Rainbow-lite DQN — CartPole-v1
 
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![CI](https://github.com/harshagarwalnyu/cartpole-rainbow-dqn/actions/workflows/ci.yml/badge.svg)](https://github.com/harshagarwalnyu/cartpole-rainbow-dqn/actions/workflows/ci.yml)
+
 A from-scratch implementation of a **Rainbow-inspired Deep Q-Network** using only NumPy, solving the Gymnasium `CartPole-v1` environment.
 
 > Built for the Business Analytics Club RL lecture series.
@@ -114,8 +118,22 @@ uv run python train.py --episodes 800  # run longer
 
 ---
 
+## Results
+
+![Training curve](training_curve.png)
+
+Episode reward (blue) and 100-episode rolling average (red) over training. See the plot for the actual episode at which the agent crossed the solve threshold (avg100 ≥ 475) in this run.
+
+---
+
 ## Dependencies
 
 - `gymnasium` — CartPole-v1 environment
 - `numpy` — all neural network operations (no PyTorch/TensorFlow)
 - `matplotlib` — learning curve plotting
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).

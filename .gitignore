@@ -17,11 +17,18 @@ uv.lock
 .ipynb_checkpoints/
 
 # Outputs (generated at runtime)
-training_curve.png
 *.png
+!training_curve.png
 *.mp4
 *.gif
+runs/
+*.pt
+*.pth
 
 # OS
 .DS_Store
 Thumbs.db
+
+# Editors
+.vscode/
+.idea/
